@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28714.193
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "uc_examples-winrt-military-mechanic", "uc_examples-winrt-military-mechanic.csproj", "{ABA69BD0-5F6F-49A6-89F4-33FEA84C0D4C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ABA69BD0-5F6F-49A6-89F4-33FEA84C0D4C}.Release|x64.ActiveCfg = Release|x64
+		{ABA69BD0-5F6F-49A6-89F4-33FEA84C0D4C}.Release|x64.Build.0 = Release|x64
+		{ABA69BD0-5F6F-49A6-89F4-33FEA84C0D4C}.Release|x64.Deploy.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		        SolutionGuid = {BFFC144E-AA18-45AE-A2EC-912FC2879C66}
+		                SolutionGuid = {B24EE358-3064-48AA-B293-B8284DDD8D68}
+		SolutionGuid = {E303025F-20DE-49A3-936D-11A5AF002049}
+	EndGlobalSection
+EndGlobal
