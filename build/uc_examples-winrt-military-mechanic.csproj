@@ -57,17 +57,14 @@
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
   </ItemGroup>
-
   <ItemGroup>
     <ComputeSharpShader Include="shaders\lighting_cs.hlsl" />
   </ItemGroup>
-
   <ItemGroup>
     <RootSharpSignature Include="shaders\default_compute_signature_cs.hlsl">
       <EntryPointName>MyRS2</EntryPointName>
     </RootSharpSignature>
   </ItemGroup>
-
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -86,7 +83,7 @@
       <Version>1.0.10</Version>
     </PackageReference>
     <PackageReference Include="uc-graphics-winrt">
-      <Version>1.0.46</Version>
+      <Version>1.0.47</Version>
     </PackageReference>
     <PackageReference Include="uc-tools-msbuild-tasks">
       <Version>1.0.39</Version>
