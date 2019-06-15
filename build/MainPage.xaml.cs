@@ -25,10 +25,102 @@ namespace uc_example
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private ResourceCreateContext         m_ctx;
-        private CompositionSwapChainResources m_swapChain;
-        private object m_rendererLock         = new object();
-        private IAsyncAction                  m_renderLoopWorker;
+        private ResourceCreateContext           m_ctx;
+        private CompositionSwapChainResources   m_swapChain;
+        private object m_rendererLock           = new object();
+        private IAsyncAction                    m_renderLoopWorker;
+        private DerivativesSkinnedMaterial      m_mechanicMaterial;
+        private DerivativesSkinnedModel         m_mechanicModel;
+        private DerivativesSkinnedModelInstance m_mechanicInstance;
+
+        private ComputePipelineState            m_lighting;
+
+        private Matrix44 identity()
+        {
+            Matrix44 r;
+            r.r00 = 1.0f;
+            r.r01 = 0.0f;
+            r.r02 = 0.0f;
+            r.r03 = 0.0f;
+
+            r.r10 = 0.0f;
+            r.r11 = 1.0f;
+            r.r12 = 0.0f;
+            r.r13 = 0.0f;
+
+            r.r20 = 0.0f;
+            r.r21 = 0.0f;
+            r.r22 = 1.0f;
+            r.r23 = 0.0f;
+
+            r.r30 = 0.0f;
+            r.r31 = 0.0f;
+            r.r32 = 0.0f;
+            r.r33 = 1.0f;
+
+            return r;
+        }
+
+        private Matrix44 CameraMatrix()
+        {
+            Matrix44 r;
+            r.r00 = -1.0f;
+            r.r01 = 0.0f;
+            r.r02 = 0.0f;
+            r.r03 = 0.0f;
+
+            r.r10 = 0.0f;
+            r.r11 = 1.0f;
+            r.r12 = 0.0f;
+            r.r13 = 0.0f;
+
+            r.r20 = 0.0f;
+            r.r21 = 0.0f;
+            r.r22 = -1.0f;
+            r.r23 = 0.0f;
+
+            r.r30 = 0.0f;
+            r.r31 = 0.0f;
+            r.r32 = 5.0f;
+            r.r33 = 1.0f;
+
+            return r;
+        }
+
+
+        private Matrix44 PerspectiveMatrix()
+        {
+            Matrix44 r;
+            r.r00 = 1.35803974f;
+            r.r01 = 0.0f;
+            r.r02 = 0.0f;
+            r.r03 = 0.0f;
+
+            r.r10 = 0.0f;
+            r.r11 = 2.41429281f;
+            r.r12 = 0.0f;
+            r.r13 = 0.0f;
+
+            r.r20 = 0.0f;
+            r.r21 = 0.0f;
+            r.r22 = 1.00100100f;
+            r.r23 = 1.0f;
+
+            r.r30 = 0.0f;
+            r.r31 = 0.0f;
+            r.r32 = -0.100100100f;
+            r.r33 = 0.0f;
+
+            return r;
+        }
+
+        ComputePipelineState makeLighting(ResourceCreateContext ctx)
+        {
+            var code = UniqueCreator.Graphics.Gpu.Shaders.lighting_cs.Factory.Create();
+            var description = new ComputePipelineStateDescription();
+            description.CS = code;
+            return new ComputePipelineState(m_ctx, description);
+        }
 
         public MainPage()
         {
@@ -42,7 +134,13 @@ namespace uc_example
 
             var ctx = m_swapChain.CreateGraphicsComputeCommandContext();
 
+            m_mechanicMaterial  = new DerivativesSkinnedMaterial(m_ctx, ctx, "");
+            m_mechanicModel     = new DerivativesSkinnedModel(m_mechanicMaterial, m_ctx, ctx, @"Assets\\models\\military_mechanic.derivatives_skinned_model.model");
+            m_mechanicInstance  = new DerivativesSkinnedModelInstance(m_mechanicModel, identity());
+
             ctx.SubmitAndWaitToExecute();
+
+            m_lighting = makeLighting(m_ctx);
         }
 
         public void OnResuming()
@@ -123,17 +221,75 @@ namespace uc_example
                 var w                   = (uint)backBuffer.Size2D.Width;
                 var h                   = (uint)backBuffer.Size2D.Height;
 
-                var frameColorBuffer    = m_ctx.CreateFrameColorBuffer(w, h, GraphicsFormat.R8G8B8A8_UNORM, ResourceState.RenderTarget);
-                var frameDepthBuffer    = m_ctx.CreateFrameDepthBuffer(w, h, DepthBufferFormat.Depth32Single, ResourceState.DepthWrite);
+                var albedo              = m_ctx.CreateFrameColorBuffer(w, h, GraphicsFormat.R8G8B8A8_UNORM, ResourceState.RenderTarget);
+                var depth               = m_ctx.CreateFrameDepthBuffer(w, h, DepthBufferFormat.Depth32Single, ResourceState.DepthWrite);
 
-                ctx.TransitionResource(backBuffer, ResourceState.Present, ResourceState.RenderTarget);
-
-                ctx.SetRenderTarget(backBuffer, frameDepthBuffer);
+                ctx.SetRenderTarget(albedo, depth);
                 ctx.SetDescriptorHeaps();
-                ctx.Clear(frameColorBuffer);
-                ctx.Clear(frameDepthBuffer);
+                ctx.Clear(albedo);
+                ctx.Clear(depth);
 
-                ctx.TransitionResource(backBuffer, ResourceState.RenderTarget, ResourceState.Present);
+                AlbedoPassData albedoPass;
+                DepthPassData  depthPass;
+
+                {
+                    Size2D s = size;
+
+                    {
+                        ViewPort v;
+
+                        v.MinDepth = 0.0f;
+                        v.MaxDepth = 1.0f;
+                        v.TopLeftX = 0.0f;
+                        v.TopLeftY = 0.0f;
+                        v.Width = s.Width;
+                        v.Height = s.Height;
+
+                        albedoPass.ViewPort.Width    = v.Width;
+                        albedoPass.ViewPort.Height   = v.Height;
+                        albedoPass.ViewPort.MinimumZ = v.MinDepth;
+                        albedoPass.ViewPort.MaximumZ = v.MaxDepth;
+
+                        depthPass.ViewPort.Width = v.Width;
+                        depthPass.ViewPort.Height = v.Height;
+                        depthPass.ViewPort.MinimumZ = v.MinDepth;
+                        depthPass.ViewPort.MaximumZ = v.MaxDepth;
+
+                        ctx.SetViewPort(v);
+                    }
+
+                    {
+                        Rectangle2D v;
+
+                        v.Left = 0;
+                        v.Top = 0;
+                        v.Right = s.Width;
+                        v.Bottom = s.Height;
+
+                        ctx.SetScissorRectangle(v);
+                    }
+                }
+
+
+                albedoPass.Camera.ViewTransform         = CameraMatrix();
+                albedoPass.Camera.PerspectiveTransform  = PerspectiveMatrix();
+                depthPass.Camera.ViewTransform          = CameraMatrix();
+                depthPass.Camera.PerspectiveTransform   = PerspectiveMatrix();
+
+                m_mechanicMaterial.SubmitDepth(depthPass, ctx);
+                m_mechanicModel.SubmitDepth(ctx);
+                m_mechanicInstance.SubmitDepth(ctx);
+
+                ctx.TransitionResource(depth, ResourceState.DepthWrite, ResourceState.DepthRead);
+
+                m_mechanicMaterial.SubmitAlbedo(albedoPass, ctx);
+                m_mechanicModel.SubmitAlbedo(ctx);
+                m_mechanicInstance.SubmitAlbedo(ctx);
+
+                ctx.TransitionResource(albedo, ResourceState.RenderTarget, ResourceState.CopySource);
+                ctx.TransitionResource(backBuffer, ResourceState.Present, ResourceState.CopyDestination);
+                ctx.CopyResource(backBuffer, albedo);
+                ctx.TransitionResource(backBuffer, ResourceState.CopyDestination, ResourceState.Present);
                 ctx.Submit();
             }
            
