@@ -276,15 +276,24 @@ namespace uc_example
                 depthPass.Camera.ViewTransform          = CameraMatrix();
                 depthPass.Camera.PerspectiveTransform   = PerspectiveMatrix();
 
-                m_mechanicMaterial.SubmitDepth(depthPass, ctx);
-                m_mechanicModel.SubmitDepth(ctx);
-                m_mechanicInstance.SubmitDepth(ctx);
+                //Depth prime the buffer
+                {
+                    m_mechanicMaterial.SubmitDepth(depthPass, ctx);
+                    m_mechanicModel.SubmitDepth(ctx);
+                    m_mechanicInstance.SubmitDepth(ctx);
+                }
 
+                //Read from the buffer, submit with depth test
                 ctx.TransitionResource(depth, ResourceState.DepthWrite, ResourceState.DepthRead);
 
-                m_mechanicMaterial.SubmitAlbedo(albedoPass, ctx);
-                m_mechanicModel.SubmitAlbedo(ctx);
-                m_mechanicInstance.SubmitAlbedo(ctx);
+                {
+                    //Submit per material data
+                    m_mechanicMaterial.SubmitAlbedo(albedoPass, ctx);
+                    //Submit Per Model Data
+                    m_mechanicModel.SubmitAlbedo(ctx);
+                    //Submit as many instances with different world matrices
+                    m_mechanicInstance.SubmitAlbedo(ctx);
+                }
 
                 ctx.TransitionResource(albedo, ResourceState.RenderTarget, ResourceState.CopySource);
                 ctx.TransitionResource(backBuffer, ResourceState.Present, ResourceState.CopyDestination);
